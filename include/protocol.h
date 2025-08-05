@@ -1,0 +1,6 @@
+typedef enum {
+  MSG_TYPE_EVENT,
+  MSG_TYPE_COMMAND,
+  MSG_TYPE_RESPONSE,
+  MSG_TYPE_ERROR,
+} MessageType;
