@@ -30,13 +30,12 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Failed to open fancy socket error code: %i", fsos);
     exit(1);
   }
-  fancy_socket_listener(fs);
-  // pthread_t thread;
-  // if (pthread_create(&thread, NULL, listen_thread, fs) != 0) {
-  //   perror("pthread_create");
-  //   return 1;
-  // };
-  // pthread_join(thread, NULL);
+  pthread_t thread;
+  if (pthread_create(&thread, NULL, listen_thread, fs) != 0) {
+    perror("pthread_create");
+    return 1;
+  };
+  pthread_join(thread, NULL);
 
   return 0;
 }
