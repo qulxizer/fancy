@@ -1,23 +1,51 @@
-#include <msgpack/object.h>
+#ifndef PROTOCOL_H
+#define PROTOCOL_H
+
+#include "gtk/gtk.h"
+#include <msgpack/pack.h>
 #include <stddef.h>
-typedef enum {
-  MSG_TYPE_EVENT,
-  MSG_TYPE_COMMAND,
-  MSG_TYPE_RESPONSE,
-  MSG_TYPE_ERROR,
-} MessageType;
 
-typedef enum {
-  EVENT_CLICKED,
-  EVENT_HOVERED,
-  EVENT_KEY_PRESSED,
-  EVENT_KEY_RELEASED,
-  EVENT_FOCUS_IN,
-  EVENT_FOCUS_OUT,
-} EventType;
+#define ENUM_GEN(ENUM) ENUM,
+#define STRING_GEN(STRING) #STRING,
 
-size_t build_event(void *buf, size_t maxlen, const char *event_name,
-                   const char *data);
-size_t build_command(void *buf, size_t maxlen, const char *cmd,
-                     msgpack_object *args);
-size_t build_response(void *buf, size_t maxlen, int id, const char *result);
+#define FOREACH_FANCY_MESSAGE_TYPE(FANCY_MESSAGE_TYPE)                         \
+  FANCY_MESSAGE_TYPE(FANCY_MESSAGE_EVENT)                                      \
+  FANCY_MESSAGE_TYPE(FANCY_MESSAGE_WINDOW)                                     \
+  FANCY_MESSAGE_TYPE(FANCY_MESSAGE_COUNT)
+
+typedef enum { FOREACH_FANCY_MESSAGE_TYPE(ENUM_GEN) } FancyMessageType;
+extern const char *fancy_message_type_strs[];
+
+#define FOREACH_FANCY_EVENT_TYPE(FANCY_EVENT_TYPE)                             \
+  FANCY_EVENT_TYPE(FANCY_EVENT_CLICKED)                                        \
+  FANCY_EVENT_TYPE(FANCY_EVENT_HOVERD)                                         \
+  FANCY_EVENT_TYPE(FANCY_EVENT_KEY_PRESSED)                                    \
+  FANCY_EVENT_TYPE(FANCY_EVENT_KEY_RELEASE)                                    \
+  FANCY_EVENT_TYPE(FANCY_EVENT_FOCUS_IN)                                       \
+  FANCY_EVENT_TYPE(FANCY_EVENT_FOCUS_OUT)                                      \
+  FANCY_EVENT_TYPE(FANCY_EVENT_COUNT)
+
+typedef enum { FOREACH_FANCY_EVENT_TYPE(ENUM_GEN) } FacnyEventType;
+extern const char *fancy_event_type_strs[];
+
+typedef struct {
+  char *event_name;
+  FacnyEventType event_type;
+  char *widget_id;
+  GtkWidget *widget;
+} FancyEvent_t;
+
+size_t fancy_encode_event(void *buf, size_t maxlen, const FancyEvent_t *event);
+
+typedef struct {
+  char *window_name;
+  GtkApplication *app;
+  GtkWindow *window;
+} FancyWindow_t;
+
+size_t fancy_decode_window(const char *buf, size_t maxlen, GtkApplication *app,
+                           FancyWindow_t *window);
+
+static size_t fancy_init_message(const FancyMessageType fmt,
+                                 msgpack_packer *pk);
+#endif

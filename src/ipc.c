@@ -1,4 +1,9 @@
 #include "ipc.h"
+#include <asm-generic/errno-base.h>
+#include <asm-generic/errno.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,11 +61,15 @@ FancySocket *fancy_socket_create(void) {
  *          On failure, the socket file descriptor is closed and not stored.
  */
 int fancy_socket_open(FancySocket *fs) {
+  if (!fs) {
+    return -1;
+  }
   int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
   if (sockfd < 0) {
     perror("socket");
     return -1;
   }
+  fs->sockfd = sockfd;
 
   struct sockaddr_un addr = {0};
   addr.sun_family = AF_UNIX;
@@ -79,8 +88,17 @@ int fancy_socket_open(FancySocket *fs) {
     close(sockfd);
     return -1;
   }
+  int flags = fcntl(sockfd, F_GETFL, 0);
+  if (flags < 0) {
 
-  fs->sockfd = sockfd;
+    perror("fcntl F_GETFL");
+    return -1;
+  }
+  if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK)) {
+    perror("fcntl F_SETFL");
+    return -1;
+  }
+
   return 0;
 }
 
@@ -126,4 +144,35 @@ int fancy_socket_destroy(FancySocket *fs) {
   free(fs->path);
   free(fs);
   return 0;
+}
+
+/**
+ * fancy_socket_accept:
+ * @fs: Pointer to a FancySocket.
+ *
+ * Non-blocking accept on @fs->sockfd.
+ *
+ * Returns:
+ * - The new client file descriptor on success (> 0).
+ * - 0 if no pending connection is ready (errno is EAGAIN or EWOULDBLOCK).
+ * - -1 on a fatal error (after calling perror).
+ */
+int fancy_socket_accept(FancySocket *fs) {
+  if (!fs || fs->sockfd < 0)
+    return -1;
+
+  struct sockaddr_in client_addr;
+  socklen_t client_len = sizeof(client_addr);
+  int client_fd =
+      accept(fs->sockfd, (struct sockaddr *)&client_addr, &client_len);
+
+  if (client_fd < 0) {
+    if (errno == EWOULDBLOCK || errno == EAGAIN) {
+      return 0;
+    }
+    perror("accept");
+    return -1;
+  }
+
+  return client_fd;
 }
